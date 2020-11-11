@@ -60,7 +60,7 @@ This project provides a migration tool to move any number of resources from one 
 
 | **Flag** | **Description** | **Notes** |
 |---|---|---|
-| -version | Prints this tool's version | |
-| -help  | Prints this script's README | |
-| -debug | Enables DEBUG mode and prints otherwise hidden output | |
-| -cleanup | Cleans up any backup files at the successful conclusion of this script | CAUTION: Only use if you know what you're doing! |
+| <div style="white-space: nowrap;">-version</div> | Prints this tool's version | |
+| <div style="white-space: nowrap;">-help</div>  | Prints this script's README | |
+| <div style="white-space: nowrap;">-debug</div> | Enables DEBUG mode and prints otherwise hidden output | |
+| <div style="white-space: nowrap;">-cleanup</div> | Cleans up any backup files at the successful conclusion of this script | **CAUTION**: Only use if you know what you're doing! |
