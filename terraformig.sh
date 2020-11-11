@@ -1,6 +1,35 @@
 #!/bin/sh
+
+### SOURCE ###
+# https://gitlab.com/skywiz-io/terraformig
+
+### LICENSE ###
+# MIT License
+
+# Copyright (c) 2020 TeraSky and Yeshayahu Wasserman
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+### CONFIGURATION ###
 set -e # Exit when any command fails
 
+### GLOBAL VARIABLES ###
 TERRAFORMIG_VERSION="0.1.0"
 
 ### FUNCTIONS ###
@@ -9,25 +38,17 @@ cat << EOF
 
 This script provides a migration tool to move any number of resources from one statefile to another (including remote backends).
 
-Motivation:
-  
-  * There is an open feature request to support this usage, but seems unlikely to be provided anytime soon. 
-  * Check here for the current status: https://github.com/hashicorp/terraform/issues/23580
-
 Prerequisites:
-  
   * Terraform version 12.13+ (Untested on earlier versions, but may work).
   * jq version >= jq-1.5-1-a5b5cbe (Untested on earlier versions, but may work).
   * Script MUST be run from Source Terraform directory; from which you wish to extract resources.
 
 Directions:
-
   * Move the Terraform code (that defines the resources you wish to move) to the Target directory.
     > Option 1: Separate the terraform resources to a separate .tf file and then move the whole file to the Target directory.
     > Option 2: Cut and paste each resource/module block from the current (Source) directory and paste in a .tf (usually main.tf) file at the Target directory.
 
 Usage: terraformig [-options] <command> [src path] [dest path]
-  
   * src path          Path to source terraform directory 
                         Defaults to current working directory
   * dest path         Path to destination terraform directory
@@ -89,7 +110,7 @@ error_handler(){
   \n          Exiting...\n\n"
 }
 
-### DEFAULTS ###
+### DEFAULT VARIABLES ###
 CLEANUP_BACKUPS=0
 DEBUG=0
 PURGE=0
@@ -134,10 +155,6 @@ do
         CLEANUP_BACKUPS=1
         shift
         ;;
-        # -c=*|--cache=*)
-        # CACHE_DIRECTORY="${arg#*=}"
-        # shift
-        # ;;
         apply)
         APPLY=1
         shift
@@ -286,6 +303,3 @@ if [[ $CLEANUP_BACKUPS -eq 1 ]]; then
 fi
 
 custom_print "Finished!"
-# TODO: Document rollback procedure from statefile backups
-# TODO: Allow for dir navigation during command execution?
-# TODO: Add flags to do the rollback, cleanup files, verbose mode, etc.
