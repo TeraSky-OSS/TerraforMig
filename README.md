@@ -49,12 +49,12 @@ This project provides a migration tool to move any number of resources from one 
 
 ### 5.2. Commands
 
-| **Command** | **Description** | **Notes** |
+| **Command** | **Description** |
 |---|---|---|
-| apply | Moves resouces/modules between states | |
-| plan | Runs migration tool in DRY_RUN mode without modifying states | |
-| purge | Deletes backup files created by this tool in both SRC and DEST Terraform directories | |
-| rollback | Recovers previous states in both SRC and DEST Terraform directories | |
+| apply | Moves resouces/modules between states |
+| plan | Runs migration tool in DRY_RUN mode without modifying states |
+| purge | Deletes backup files created by this tool in both SRC and DEST Terraform directories |
+| rollback | Recovers previous states in both SRC and DEST Terraform directories |
 
 ### 5.3. Options
 
