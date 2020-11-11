@@ -2,6 +2,7 @@
 
 >*The missing Terraform state migration tool*
 
+- [Installation](#installation)
 - [1. Goal](#1-goal)
 - [2. Motivation](#2-motivation)
 - [3. Prerequisites](#3-prerequisites)
@@ -10,6 +11,14 @@
   - [5.1. Usage](#51-usage)
   - [5.2. Commands](#52-commands)
   - [5.3. Options](#53-options)
+
+## Installation
+
+1. Download the shell script
+2. Give executable permissions to the script
+3. (Optional) Rename the script to `terraformig` without the `.sh` suffix
+4. Move the script to a location in your $PATH
+   - It's recommended to place this script at the same location as your terraform binary since it is reliant on it
 
 ## 1. Goal
 
@@ -21,7 +30,7 @@ This project provides a migration tool to move any number of resources from one 
   - [23580](https://github.com/hashicorp/terraform/issues/23580)
   - [21796](https://github.com/hashicorp/terraform/issues/21796)
 - While some improvements / bug fixes have been applied for the state management, there does not seem to be any effort on providing a simplified and more robust state migration (through Terraform 0.14.0 __*__)
-  >__*__ Last checked on Nov. 11, 2020
+  >__*__ Last checked on 2020-11-11
 
 ## 3. Prerequisites
   
@@ -44,7 +53,7 @@ This project provides a migration tool to move any number of resources from one 
 |---|---|---|
 | \[options] | Command-line flags. List of available flags below. | Optional |
 | \<command> | Command to run. List of available commands below. | Required |
-| [src path] | Path to source terraform directory | Optional <br>(Defaults to current working directory) |
+| [src path] | Path to source terraform directory | Optional (Defaults to current working directory) |
 | \<dest path> | Path to destination terraform directory | Required |
 
 ### 5.2. Commands
