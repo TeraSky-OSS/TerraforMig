@@ -69,7 +69,7 @@ Options:
 EOF
 }
 
-custom_print(){
+info_print(){
   printf "\n[INFO] - %s\n" "$*"
   sleep 2
 }
@@ -95,7 +95,7 @@ backup_warning(){
 }
 
 cleanup_backups(){
-  custom_print "Cleaning up all backup files."
+  info_print "Cleaning up all backup files."
   cd ${START_DIR}
   cd $TF_SRC_DIR
   rm -rf terraformig.tfstate*
@@ -178,7 +178,7 @@ if [[ $NUM_OF_ARGS -eq 0 || $HELP -eq 1 ]] || [[ $APPLY -eq 0 && $DRY_RUN -eq 0 
 fi
 
 if [[ $VERSION -eq 1 ]]; then
-  custom_print "TerraforMig v$TERRAFORMIG_VERSION"
+  info_print "TerraforMig v$TERRAFORMIG_VERSION"
   exit 0
 fi
 
@@ -195,12 +195,12 @@ if [[ -z "$TF_DEST_DIR" ]]; then
 fi
 
 if [[ $DRY_RUN -eq 1 ]]; then
-  custom_print "DRY_RUN mode enabled. Nothing will be moved. Only temporary backups and plans will be created."
+  info_print "DRY_RUN mode enabled. Nothing will be moved. Only temporary backups and plans will be created."
 fi
 
 # Check if string is empty using -z
 while [[ -z "$TF_DEST_DIR" ]]; do
-  custom_print "Current directory (\$pwd): $(pwd)
+  info_print "Current directory (\$pwd): $(pwd)
   "
   read -p "Please enter the destination terraform directory (include path): " TF_DEST_DIR
 done
@@ -209,21 +209,21 @@ if [[ ! -d $TF_DEST_DIR ]]; then
 fi
 
 if [[ $PURGE -eq 1 ]]; then
-  custom_print "Purging previous backups performed by this tool..."
+  info_print "Purging previous backups performed by this tool..."
   cleanup_backups
-  custom_print "Purge complete. Exiting..."
+  info_print "Purge complete. Exiting..."
   exit 0
 fi
 
 cd ${START_DIR}
 cd ${TF_SRC_DIR}
-custom_print "Ensuring source terraform directory is initialized."
+info_print "Ensuring source terraform directory is initialized."
 TF_SRC_INIT=$(terraform init -input=false)
 if [[ $DEBUG -eq 1 ]]; then
   debug_print "$TF_SRC_INIT"
 fi
 
-custom_print "Creating source statefile backup titled \"terraformig.tfstate.backup\" before modifying."
+info_print "Creating source statefile backup titled \"terraformig.tfstate.backup\" before modifying."
 if [[ -f terraformig.tfstate.backup ]]; then
   backup_warning
 fi
@@ -231,7 +231,7 @@ terraform state pull > terraformig.tfstate.backup
 
 cd ${START_DIR}
 cd ${TF_DEST_DIR}
-custom_print "Ensuring destination terraform is initialized."
+info_print "Ensuring destination terraform is initialized."
 TF_DEST_INIT=$(terraform init -reconfigure -input=false)
 if [[ $DEBUG -eq 1 ]]; then
   debug_print "$TF_DEST_INIT"
@@ -242,7 +242,7 @@ if [[ "$TF_BACKEND_STR" == *"$TF_DEST_INIT"* ]]; then
   debug_print "It's there!"
   TF_BACKEND_EXIST=1
 fi
-custom_print "Creating destination statefile backup titled \"terraformig.tfstate.backup\" before modifying."
+info_print "Creating destination statefile backup titled \"terraformig.tfstate.backup\" before modifying."
 if [[ -f terraformig.tfstate.backup ]]; then
   backup_warning
 fi
@@ -251,7 +251,7 @@ cp terraform.tfstate terraformig.tfstate.backup
 
 cd ${START_DIR}
 cd $TF_SRC_DIR
-custom_print "Creating temporary terraform plan file."
+info_print "Creating temporary terraform plan file."
 terraform plan -out=terraformig.tfplan > /dev/null
 
 CMD() {
@@ -270,9 +270,9 @@ do
     fi
   fi
   if [[ $DRY_RUN -eq 1 ]]; then
-    custom_print "DRY_RUN mode enabled. Would move $current resource/module."
+    info_print "DRY_RUN mode enabled. Would move $current resource/module."
   else
-    custom_print "Moving $current resource/module..."
+    info_print "Moving $current resource/module..."
     terraform state mv -state-out=${TF_DEST_DIR}/terraform.tfstate $current $current
   fi
   previous=$current
@@ -281,13 +281,13 @@ done
 rm -f terraformig.tfplan
 
 if [[ $count -eq 0 ]]; then
-  custom_print "0 resources to move."
-  custom_print "Did you remove the resource definitions from the source config files?"
+  info_print "0 resources to move."
+  info_print "Did you remove the resource definitions from the source config files?"
 else
   cd ${START_DIR}
   cd ${TF_DEST_DIR}
   rm -f ./.terraform/terraform.tfstate
-  custom_print "Initializing destination terraform with updated statefile."
+  info_print "Initializing destination terraform with updated statefile."
   TF_DEST_UPDATE_INIT=$(terraform init -force-copy -input=false)
   if [[ $DEBUG -eq 1 ]]; then
     debug_print "$TF_DEST_UPDATE_INIT"
@@ -302,4 +302,4 @@ if [[ $CLEANUP_BACKUPS -eq 1 ]]; then
   cleanup_backups
 fi
 
-custom_print "Finished!"
+info_print "Finished!"
