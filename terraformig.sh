@@ -31,67 +31,86 @@ set -e # Exit when any command fails
 
 ### GLOBAL VARIABLES ###
 TERRAFORMIG_VERSION="0.1.0"
+OUTPUT_TYPE_WIDTH=7
+
+# Output Text Formatting 
+BOLD=$(tput bold)
+NORMAL=$(tput sgr0)
+UNDERLINE=$(tput smul)
 
 ### FUNCTIONS ###
+
 print_readme(){
 cat << EOF
 
-This script provides a migration tool to move any number of resources from one statefile to another (including remote backends).
+Usage: terraformig [options] <subcommand> [src] <dest>
+  [options]     See below for available options.
+  <command>     See below for available commands.
+  [src]         Path to source terraform directory. (Defaults to current working directory).
+  <dest>        Path to destination terraform directory.
 
-Prerequisites:
-  * Terraform version 12.13+ (Untested on earlier versions, but may work).
-  * jq version >= jq-1.5-1-a5b5cbe (Untested on earlier versions, but may work).
-  * Script MUST be run from Source Terraform directory; from which you wish to extract resources.
+Main commands:
+  apply         Moves resouces/modules between states.
+  plan          Runs migration tool in DRY_RUN mode without modifying states.
+  purge         Deletes backup files created by this tool in both SRC and DEST Terraform directories.
+  rollback      Recovers previous states in both SRC and DEST Terraform directories.
+  help          Show this help output.
+  version       Show the current Terraformig version.
 
-Directions:
-  * Move the Terraform code (that defines the resources you wish to move) to the Target directory.
-    > Option 1: Separate the terraform resources to a separate .tf file and then move the whole file to the Target directory.
-    > Option 2: Cut and paste each resource/module block from the current (Source) directory and paste in a .tf (usually main.tf) file at the Target directory.
+Global options (use these before the subcommand, if any):
+  -chdir=DIR    Switch to a different working directory before executing the
+                given subcommand.
+  -cleanup      ${BOLD}CAUTION:${NORMAL} Only use if you know what you're doing!
+                Cleans up any backup files at the successful conclusion of this script.
+  -debug        Enabled DEBUG mode and prints otherwise hidden output.
+  -help         An alias for the "help" subcommand.
+  -version      An alias for the "version" subcommand.
 
-Usage: terraformig [-options] <command> [src path] [dest path]
-  * src path          Path to source terraform directory 
-                        Defaults to current working directory
-  * dest path         Path to destination terraform directory
- 
-Commands:
-    apply             Moves resouces/modules between states
-    plan              Runs migration tool in DRY_RUN mode without modifying states
-    purge             Deletes backup files created by this tool in both SRC and DEST Terraform directories
-    rollback          Recovers previous states in both SRC and DEST Terraform directories
-
-Options:
-    -cleanup          CAUTION: Only use if you know what you're doing!
-                        Cleans up any backup files at the successful conclusion of this script
-    -debug            Enabled DEBUG mode and prints otherwise hidden output
-    -help             Prints this script's README
-    -version          Prints this tool's version
+See here for more information: https://gitlab.com/skywiz-io/terraformig
 
 EOF
 }
 
+format_input(){
+  echo "$(echo "$*" | sed -e 's/^[[:space:]][[:space:]]*/\t/')" # Replaces lines with multiple leading spaces with a tab
+}
+
 info_print(){
-  printf "\n[INFO] - %s\n" "$*"
+  tabulated_input="$(format_input "$*")"
+  printf "\n%-*s %s\n" $OUTPUT_TYPE_WIDTH "[INFO]" "$tabulated_input"
   sleep 2
 }
 
 debug_print(){
-  printf "\n[DEBUG] - %s\n" "$*"
+  tabulated_input="$(format_input "$*")"
+  printf "\n%-*s %s\n" $OUTPUT_TYPE_WIDTH "[DEBUG]" "$tabulated_input"
+  sleep 1
+}
+
+warn_print(){
+  tabulated_input="$(format_input "$*")"
+  printf "\n%-*s %s\n" $OUTPUT_TYPE_WIDTH "[WARN]" "$tabulated_input"
   sleep 1
 }
 
 error_print(){
-  printf "\n[ERROR] - %s. \
-  \n          Exiting...\n\n" \
-  "$*"
+  tabulated_input="$(format_input "$*")"
+  printf "\n%-*s %s. \
+  \n\tExiting...\n\n" \
+  $OUTPUT_TYPE_WIDTH "[ERROR]" "$tabulated_input" >&2
+  sleep 1
   exit 1
 }
 
-backup_warning(){
-  printf "\n[WARN] - There already exists a backup made by this script. \
-  \n         Please remove or rename it and then try again. \
-  \n         You may wish to run the \"purge\" command. \
-  \n         Exiting...\n\n"
-  exit 1
+backup_exists_error(){
+  error_print "There already exists a backup made by this script.
+    Please remove or rename it and then try again.
+    You may wish to run the \"purge\" command."
+}
+
+error_handler(){
+  error_print "Something went wrong.
+    You may wish to add the \"-debug\" flag to your command."
 }
 
 cleanup_backups(){
@@ -102,12 +121,6 @@ cleanup_backups(){
   cd ${START_DIR}
   cd $TF_DEST_DIR
   rm -rf terraformig.tfstate*
-}
-
-error_handler(){
-  printf "\n[ERROR] - Something went wrong. \
-  \n          You may wish to add the \"-debug\" flag to your command. \
-  \n          Exiting...\n\n"
 }
 
 ### DEFAULT VARIABLES ###
@@ -122,6 +135,7 @@ DRY_RUN=0
 APPLY=0
 VERSION=0
 START_DIR=$(pwd)
+COMMANDS_COUNT=0
 
 ### MAIN ###
 trap "error_handler" ERR
@@ -132,31 +146,38 @@ do
     case $arg in
         -cleanup)
         CLEANUP_BACKUPS=1
+        COMMANDS_COUNT+=1
         shift
         ;;
-        -version)
+        -version|-v|version)
         VERSION=1
+        COMMANDS_COUNT+=1
         shift
         ;;
-        -debug)
+        -debug|-d)
         DEBUG=1
+        COMMANDS_COUNT+=1
         shift
         ;;
         purge)
         PURGE=1
+        COMMANDS_COUNT+=1
         shift
         ;;
-        -help)
+        -help|-h|help)
         HELP=1
+        COMMANDS_COUNT+=1
         shift
         ;;
         plan)
         DRY_RUN=1
         CLEANUP_BACKUPS=1
+        COMMANDS_COUNT+=1
         shift
         ;;
         apply)
         APPLY=1
+        COMMANDS_COUNT+=1
         shift
         ;;
         *)
@@ -166,20 +187,33 @@ do
     esac
 done
 
-TF_DEST_DIR=${OTHER_ARGUMENTS[0]}
-if [[ ${#OTHER_ARGUMENTS[@]} -gt 1 ]]; then
-  TF_SRC_DIR="${OTHER_ARGUMENTS[0]}"
-  TF_DEST_DIR="${OTHER_ARGUMENTS[1]}"
-fi
-
-if [[ $NUM_OF_ARGS -eq 0 || $HELP -eq 1 ]] || [[ $APPLY -eq 0 && $DRY_RUN -eq 0 && $PURGE -eq 0 ]]; then
+# -help
+if [[ $HELP -eq 1 ]] ; then
   print_readme
   exit 0
 fi
 
+# Check if no commands were called and print warning
+if [[ COMMANDS_COUNT -eq 0 ]]; then
+  if [[ $NUM_OF_ARGS -eq 0 ]]; then
+    error_print "No commands supplied.
+    See \`terraformig -help\`."
+  else
+    error_print "Unknown command(s): \`${OTHER_ARGUMENTS[@]}\`.
+    See \`terraformig -help\`."
+  fi
+fi
+
+# -version
 if [[ $VERSION -eq 1 ]]; then
   info_print "TerraforMig v$TERRAFORMIG_VERSION"
   exit 0
+fi
+
+TF_DEST_DIR=${OTHER_ARGUMENTS[0]}
+if [[ ${#OTHER_ARGUMENTS[@]} -gt 1 ]]; then
+  TF_SRC_DIR="${OTHER_ARGUMENTS[0]}"
+  TF_DEST_DIR="${OTHER_ARGUMENTS[1]}"
 fi
 
 if [[ -z "$TF_DEST_DIR" ]]; then
@@ -225,7 +259,7 @@ fi
 
 info_print "Creating source statefile backup titled \"terraformig.tfstate.backup\" before modifying."
 if [[ -f terraformig.tfstate.backup ]]; then
-  backup_warning
+  backup_exists_error
 fi
 terraform state pull > terraformig.tfstate.backup
 
@@ -244,7 +278,7 @@ if [[ "$TF_BACKEND_STR" == *"$TF_DEST_INIT"* ]]; then
 fi
 info_print "Creating destination statefile backup titled \"terraformig.tfstate.backup\" before modifying."
 if [[ -f terraformig.tfstate.backup ]]; then
-  backup_warning
+  backup_exists_error
 fi
 terraform state pull > terraform.tfstate
 cp terraform.tfstate terraformig.tfstate.backup
