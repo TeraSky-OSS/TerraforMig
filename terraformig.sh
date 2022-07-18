@@ -43,10 +43,9 @@ UNDERLINE=$(tput smul)
 print_readme(){
 cat << EOF
 
-Usage: terraformig [options] <subcommand> [src] <dest>
+Usage: terraformig [options] <subcommand> <dest>
   [options]     See below for available options.
   <command>     See below for available commands.
-  [src]         Path to source terraform directory. (Defaults to current working directory).
   <dest>        Path to destination terraform directory.
 
 Main commands:
@@ -59,7 +58,7 @@ Main commands:
 
 Global options (use these before the subcommand, if any):
   -chdir=DIR    Switch to a different working directory before executing the
-                given subcommand.
+                given subcommand. (Defaults to current working directory).
   -cleanup      ${BOLD}CAUTION:${NORMAL} Only use if you know what you're doing!
                 Cleans up any backup files at the successful conclusion of this script.
   -debug        Enabled DEBUG mode and prints otherwise hidden output.
@@ -115,10 +114,10 @@ error_handler(){
 
 cleanup_backups(){
   info_print "Cleaning up all backup files."
-  cd ${START_DIR}
+  cd $START_DIR
   cd $TF_SRC_DIR
   rm -rf terraformig.tfstate*
-  cd ${START_DIR}
+  cd $START_DIR
   cd $TF_DEST_DIR
   rm -rf terraformig.tfstate*
 }
@@ -146,7 +145,6 @@ do
     case $arg in
         -cleanup)
         CLEANUP_BACKUPS=1
-        COMMANDS_COUNT+=1
         shift
         ;;
         -version|-v|version)
@@ -156,7 +154,6 @@ do
         ;;
         -debug|-d)
         DEBUG=1
-        COMMANDS_COUNT+=1
         shift
         ;;
         purge)
@@ -180,6 +177,10 @@ do
         COMMANDS_COUNT+=1
         shift
         ;;
+        -chdir=*)
+        TF_SRC_DIR="$(echo "$1" | sed -e 's/^-chdir=//')" # Removes the option flag prefix `-chdir=`
+        shift
+        ;;
         *)
         OTHER_ARGUMENTS+=("$1")
         shift
@@ -195,7 +196,7 @@ fi
 
 # Check if no commands were called and print warning
 if [[ COMMANDS_COUNT -eq 0 ]]; then
-  if [[ $NUM_OF_ARGS -eq 0 ]]; then
+  if [[ $OTHER_ARGUMENTS -eq 0 ]]; then
     error_print "No commands supplied.
     See \`terraformig -help\`."
   else
@@ -211,10 +212,6 @@ if [[ $VERSION -eq 1 ]]; then
 fi
 
 TF_DEST_DIR=${OTHER_ARGUMENTS[0]}
-if [[ ${#OTHER_ARGUMENTS[@]} -gt 1 ]]; then
-  TF_SRC_DIR="${OTHER_ARGUMENTS[0]}"
-  TF_DEST_DIR="${OTHER_ARGUMENTS[1]}"
-fi
 
 if [[ -z "$TF_DEST_DIR" ]]; then
   if [[ ${BASH_VERSINFO[0]} < 4 ]]; then
@@ -249,8 +246,8 @@ if [[ $PURGE -eq 1 ]]; then
   exit 0
 fi
 
-cd ${START_DIR}
-cd ${TF_SRC_DIR}
+cd $START_DIR
+cd $TF_SRC_DIR
 info_print "Ensuring source terraform directory is initialized."
 TF_SRC_INIT=$(terraform init -input=false)
 if [[ $DEBUG -eq 1 ]]; then
@@ -263,8 +260,8 @@ if [[ -f terraformig.tfstate.backup ]]; then
 fi
 terraform state pull > terraformig.tfstate.backup
 
-cd ${START_DIR}
-cd ${TF_DEST_DIR}
+cd $START_DIR
+cd $TF_DEST_DIR
 info_print "Ensuring destination terraform is initialized."
 TF_DEST_INIT=$(terraform init -reconfigure -input=false)
 if [[ $DEBUG -eq 1 ]]; then
@@ -283,7 +280,7 @@ fi
 terraform state pull > terraform.tfstate
 cp terraform.tfstate terraformig.tfstate.backup
 
-cd ${START_DIR}
+cd $START_DIR
 cd $TF_SRC_DIR
 info_print "Creating temporary terraform plan file."
 terraform plan -out=terraformig.tfplan > /dev/null
@@ -307,7 +304,7 @@ do
     info_print "DRY_RUN mode enabled. Would move $current resource/module."
   else
     info_print "Moving $current resource/module..."
-    terraform state mv -state-out=${TF_DEST_DIR}/terraform.tfstate $current $current
+    terraform state mv -state-out=$TF_DEST_DIR/terraform.tfstate $current $current
   fi
   previous=$current
   count=$((count + 1))
@@ -318,8 +315,8 @@ if [[ $count -eq 0 ]]; then
   info_print "0 resources to move."
   info_print "Did you remove the resource definitions from the source config files?"
 else
-  cd ${START_DIR}
-  cd ${TF_DEST_DIR}
+  cd $START_DIR
+  cd $TF_DEST_DIR
   rm -f ./.terraform/terraform.tfstate
   info_print "Initializing destination terraform with updated statefile."
   TF_DEST_UPDATE_INIT=$(terraform init -force-copy -input=false)
