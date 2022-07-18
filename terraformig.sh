@@ -52,7 +52,7 @@ Main commands:
   apply         Moves resouces/modules between states.
   plan          Runs migration tool in DRY_RUN mode without modifying states.
   purge         Deletes backup files created by this tool in both SRC and DEST Terraform directories.
-  rollback      Recovers previous states in both SRC and DEST Terraform directories.
+  (TBD) rollback      Recovers previous states in both SRC and DEST Terraform directories.
   help          Show this help output.
   version       Show the current Terraformig version.
 
@@ -122,6 +122,18 @@ cleanup_backups(){
   rm -rf terraformig.tfstate*
 }
 
+user_confirmation(){
+  if [[ ${BASH_VERSINFO[0]} < 4 ]]; then
+    read -e -p "Are you ready to continue? [y/N] " answer
+  else
+    read -e -p "Are you ready to continue? " -i "yes" answer
+  fi
+  if [[ $answer != "yes" && $answer != "y" ]]; then
+    info_print "Canceled\n"
+    exit 0
+  fi
+}
+
 ### DEFAULT VARIABLES ###
 CLEANUP_BACKUPS=0
 DEBUG=0
@@ -188,6 +200,8 @@ do
     esac
 done
 
+TF_DEST_DIR=${OTHER_ARGUMENTS[0]}
+
 # -help
 if [[ $HELP -eq 1 ]] ; then
   print_readme
@@ -211,36 +225,31 @@ if [[ $VERSION -eq 1 ]]; then
   exit 0
 fi
 
-TF_DEST_DIR=${OTHER_ARGUMENTS[0]}
-
-if [[ -z "$TF_DEST_DIR" ]]; then
-  if [[ ${BASH_VERSINFO[0]} < 4 ]]; then
-    read -e -p "Are you ready to continue? [y/N] " answer
-  else
-    read -e -p "Are you ready to continue? " -i "yes" answer
-  fi
-  if [[ $answer != "yes" && $answer != "y" ]]; then
-    printf "Canceled\n"
-    exit 0
-  fi
-fi
-
 if [[ $DRY_RUN -eq 1 ]]; then
   info_print "DRY_RUN mode enabled. Nothing will be moved. Only temporary backups and plans will be created."
 fi
 
+if [[ ! -d $TF_SRC_DIR ]]; then
+  error_print "Could not locate source terraform directory at: \"$TF_SRC_DIR\""
+fi
 # Check if string is empty using -z
 while [[ -z "$TF_DEST_DIR" ]]; do
-  info_print "Current directory (\$pwd): $(pwd)
+  info_print "Current directory (\$pwd): \"$(pwd)\"
+  Source terraform directory: \"$TF_SRC_DIR\"
   "
   read -p "Please enter the destination terraform directory (include path): " TF_DEST_DIR
 done
 if [[ ! -d $TF_DEST_DIR ]]; then
   error_print "Could not locate destination terraform directory at: \"$TF_DEST_DIR\""
+else
+  info_print "Source terraform directory: \"$TF_SRC_DIR\"
+  Destination terraform directory: \"$TF_DEST_DIR\"
+  "
 fi
 
 if [[ $PURGE -eq 1 ]]; then
-  info_print "Purging previous backups performed by this tool..."
+  warn_print "Purging previous backups performed by this tool..."
+  user_confirmation
   cleanup_backups
   info_print "Purge complete. Exiting..."
   exit 0
