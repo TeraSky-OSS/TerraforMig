@@ -1,1 +1,4 @@
-tests/
+**.backup*
+**.tfstate*
+**.terraform*
+**.tf
