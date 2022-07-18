@@ -38,6 +38,21 @@ BOLD=$(tput bold)
 NORMAL=$(tput sgr0)
 UNDERLINE=$(tput smul)
 
+### DEFAULT VARIABLES ###
+CLEANUP_BACKUPS=0
+DEBUG=0
+PURGE=0
+OTHER_ARGUMENTS=()
+TF_SRC_DIR=$(pwd)
+NUM_OF_ARGS=$#
+HELP=0
+DRY_RUN=0
+APPLY=0
+VERSION=0
+START_DIR=$(pwd)
+COMMANDS_COUNT=0
+AUTO_APPROVE=0
+
 ### FUNCTIONS ###
 
 print_readme(){
@@ -61,7 +76,8 @@ Global options (use these before the subcommand, if any):
                 given subcommand. (Defaults to current working directory).
   -cleanup      ${BOLD}CAUTION:${NORMAL} Only use if you know what you're doing!
                 Cleans up any backup files at the successful conclusion of this script.
-  -debug        Enabled DEBUG mode and prints otherwise hidden output.
+  -auto-approve Skip interactive approval of plan before applying.
+  -debug        Enables DEBUG mode which prints otherwise hidden output and enables xtrace.
   -help         An alias for the "help" subcommand.
   -version      An alias for the "version" subcommand.
 
@@ -81,9 +97,11 @@ info_print(){
 }
 
 debug_print(){
-  tabulated_input="$(format_input "$*")"
-  printf "\n%-*s %s\n" $OUTPUT_TYPE_WIDTH "[DEBUG]" "$tabulated_input"
-  sleep 1
+  if [[ $DEBUG -eq 1 ]]; then
+    tabulated_input="$(format_input "$*")"
+    printf "\n%-*s %s\n" $OUTPUT_TYPE_WIDTH "[DEBUG]" "$tabulated_input"
+    sleep 1
+  fi
 }
 
 warn_print(){
@@ -116,37 +134,29 @@ cleanup_backups(){
   info_print "Cleaning up all backup files."
   cd $START_DIR
   cd $TF_SRC_DIR
+  info_print "Source terraform directory: \"$TF_SRC_DIR\"
+  Removing $(ls -l | grep "terraformig.tfstate*" | wc -l) file(s) from the source terraform directory..."
   rm -rf terraformig.tfstate*
   cd $START_DIR
   cd $TF_DEST_DIR
+  info_print "Destination terraform directory: \"$TF_DEST_DIR\"
+  Removing $(ls -l | grep "terraformig.tfstate*" | wc -l) file(s) from the destination terraform directory..."
   rm -rf terraformig.tfstate*
 }
 
 user_confirmation(){
-  if [[ ${BASH_VERSINFO[0]} < 4 ]]; then
-    read -e -p "Are you ready to continue? [y/N] " answer
-  else
-    read -e -p "Are you ready to continue? " -i "yes" answer
-  fi
-  if [[ $answer != "yes" && $answer != "y" ]]; then
-    info_print "Canceled\n"
-    exit 0
+  if [[ $AUTO_APPROVE -eq 0 ]]; then
+    if [[ ${BASH_VERSINFO[0]} < 4 ]]; then
+      read -e -p "Are you ready to continue? [y/N] " answer
+    else
+      read -e -p "Are you ready to continue? " -i "yes" answer
+    fi
+    if [[ $answer != "yes" && $answer != "y" && $answer != "Y" ]]; then
+      info_print "Canceled\n"
+      exit 0
+    fi
   fi
 }
-
-### DEFAULT VARIABLES ###
-CLEANUP_BACKUPS=0
-DEBUG=0
-PURGE=0
-OTHER_ARGUMENTS=()
-TF_SRC_DIR=$(pwd)
-NUM_OF_ARGS=$#
-HELP=0
-DRY_RUN=0
-APPLY=0
-VERSION=0
-START_DIR=$(pwd)
-COMMANDS_COUNT=0
 
 ### MAIN ###
 trap "error_handler" ERR
@@ -193,6 +203,10 @@ do
         TF_SRC_DIR="$(echo "$1" | sed -e 's/^-chdir=//')" # Removes the option flag prefix `-chdir=`
         shift
         ;;
+        -auto-approve)
+        AUTO_APPROVE=1
+        shift
+        ;;
         *)
         OTHER_ARGUMENTS+=("$1")
         shift
@@ -229,7 +243,13 @@ if [[ $DRY_RUN -eq 1 ]]; then
   info_print "DRY_RUN mode enabled. Nothing will be moved. Only temporary backups and plans will be created."
 fi
 
+if [[ $DEBUG -eq 1 ]]; then
+  debug_print "Enabling xtrace (command tracing)"
+  set -x
+fi
+
 if [[ ! -d $TF_SRC_DIR ]]; then
+  info_print "Current directory (\$pwd): \"$(pwd)\""
   error_print "Could not locate source terraform directory at: \"$TF_SRC_DIR\""
 fi
 # Check if string is empty using -z
@@ -240,11 +260,11 @@ while [[ -z "$TF_DEST_DIR" ]]; do
   read -p "Please enter the destination terraform directory (include path): " TF_DEST_DIR
 done
 if [[ ! -d $TF_DEST_DIR ]]; then
+  info_print "Current directory (\$pwd): \"$(pwd)\""
   error_print "Could not locate destination terraform directory at: \"$TF_DEST_DIR\""
 else
   info_print "Source terraform directory: \"$TF_SRC_DIR\"
-  Destination terraform directory: \"$TF_DEST_DIR\"
-  "
+  Destination terraform directory: \"$TF_DEST_DIR\""
 fi
 
 if [[ $PURGE -eq 1 ]]; then
@@ -258,34 +278,41 @@ fi
 cd $START_DIR
 cd $TF_SRC_DIR
 info_print "Ensuring source terraform directory is initialized."
-TF_SRC_INIT=$(terraform init -input=false)
-if [[ $DEBUG -eq 1 ]]; then
-  debug_print "$TF_SRC_INIT"
+TF_SRC_INIT=$(terraform init -reconfigure -input=false)
+debug_print "$TF_SRC_INIT"
+
+TF_BACKEND_STR="Successfully configured the backend"
+TF_SRC_BACKEND_EXIST=0
+if [[ "$TF_SRC_INIT" == *"$TF_BACKEND_STR"* ]]; then
+  debug_print "Source terraform backend exists."
+  TF_SRC_BACKEND_EXIST=1
 fi
 
 info_print "Creating source statefile backup titled \"terraformig.tfstate.backup\" before modifying."
 if [[ -f terraformig.tfstate.backup ]]; then
   backup_exists_error
 fi
-terraform state pull > terraformig.tfstate.backup
+terraform refresh
+terraform state pull > terraform.tfstate
+cp terraform.tfstate terraformig.tfstate.backup
 
 cd $START_DIR
 cd $TF_DEST_DIR
 info_print "Ensuring destination terraform is initialized."
 TF_DEST_INIT=$(terraform init -reconfigure -input=false)
-if [[ $DEBUG -eq 1 ]]; then
-  debug_print "$TF_DEST_INIT"
+debug_print "$TF_DEST_INIT"
+
+TF_DEST_BACKEND_EXIST=0
+if [[ "$TF_DEST_INIT" == *"$TF_BACKEND_STR"* ]]; then
+  debug_print "Destination terraform backend exists."
+  TF_DEST_BACKEND_EXIST=1
 fi
-TF_BACKEND_EXIST=0
-TF_BACKEND_STR="Successfully configured the backend"
-if [[ "$TF_BACKEND_STR" == *"$TF_DEST_INIT"* ]]; then
-  debug_print "It's there!"
-  TF_BACKEND_EXIST=1
-fi
+
 info_print "Creating destination statefile backup titled \"terraformig.tfstate.backup\" before modifying."
 if [[ -f terraformig.tfstate.backup ]]; then
   backup_exists_error
 fi
+terraform refresh
 terraform state pull > terraform.tfstate
 cp terraform.tfstate terraformig.tfstate.backup
 
@@ -329,12 +356,18 @@ else
   rm -f ./.terraform/terraform.tfstate
   info_print "Initializing destination terraform with updated statefile."
   TF_DEST_UPDATE_INIT=$(terraform init -force-copy -input=false)
-  if [[ $DEBUG -eq 1 ]]; then
-    debug_print "$TF_DEST_UPDATE_INIT"
-  fi
+  debug_print "$TF_DEST_UPDATE_INIT"
 fi
 
-if [[ $TF_BACKEND_EXIST -eq 1 ]]; then
+if [[ $TF_DEST_BACKEND_EXIST -eq 1 ]]; then
+  cd $START_DIR
+  cd $TF_DEST_DIR
+  rm -f terraform.tfstate
+fi
+
+if [[ $TF_SRC_BACKEND_EXIST -eq 1 ]]; then
+  cd $START_DIR
+  cd $TF_SRC_DIR
   rm -f terraform.tfstate
 fi
 
@@ -343,3 +376,4 @@ if [[ $CLEANUP_BACKUPS -eq 1 ]]; then
 fi
 
 info_print "Finished!"
+exit 0
