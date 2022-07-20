@@ -36,22 +36,25 @@ error_handler(){
 }
 
 enable_examples(){
-  disable_examples
-  cd $1
+  CWD=$(pwd)
+  DIR="${1:-$(pwd)}"  
+  info_print "Enabling examples $DIR."
+  cd $DIR
   DISABLED_EXAMPLES="$(ls | grep  "example.*\.tf\.disabled$")"
-  # ENABLED_EXAMPLES="$(ls | grep  "example.*\.tf$")"
   ENABLING_EXAMPLES="$(echo $DISABLED_EXAMPLES | sed -e 's/\.disabled//' )"
   cp $DISABLED_EXAMPLES $ENABLING_EXAMPLES 
-  cd - >/dev/null
+  cd $CWD
 }
 
 disable_examples(){
-  VARIABLE="${1:-$(pwd)}"
-  cd $VARIABLE
+  CWD=$(pwd)
+  DIR="${1:-$(pwd)}"
+  info_print "Disabling examples $DIR."
+  cd $DIR
   DISABLED_EXAMPLES="$(ls | grep  "example.*\.tf\.disabled$")"
-  ENABLING_EXAMPLES="$(echo $DISABLED_EXAMPLES | sed -e 's/\.disabled//' )"
-  rm -f $ENABLING_EXAMPLES 
-  cd - >/dev/null
+  ENABLED_EXAMPLES="$(echo $DISABLED_EXAMPLES | sed -e 's/\.disabled//' )"
+  rm -f $ENABLED_EXAMPLES 
+  cd $CWD
 }
 
 ### MAIN ###
@@ -61,21 +64,40 @@ trap "error_handler" ERR
 # Test
 $START_DIR/terraformig.sh -auto-approve -cleanup -chdir=$TEST_DIR_1 purge $TEST_DIR_2
 
-# Test
-cd $START_DIR
+# Initialize
 cd $TEST_DIR_1
+disable_examples $TEST_DIR_1
+enable_examples $TEST_DIR_1
+terraform init
+terraform apply -auto-approve
+terraform show
+disable_examples $TEST_DIR_1
+
+# Test
+cd $TEST_DIR_1
+disable_examples $TEST_DIR_2
 enable_examples $TEST_DIR_2
 $START_DIR/terraformig.sh -auto-approve -cleanup apply $TEST_DIR_2
+terraform show
 disable_examples $TEST_DIR_2
 
 # Test
 cd $START_DIR
 cd $TEST_DIR_2
+disable_examples $TEST_DIR_1
 enable_examples $TEST_DIR_1
+terraform show
 $START_DIR/terraformig.sh -auto-approve -cleanup apply $TEST_DIR_1
+terraform show
 disable_examples $TEST_DIR_1
 
 # Test
 $START_DIR/terraformig.sh -auto-approve -cleanup -chdir=$TEST_DIR_1 purge $TEST_DIR_2
+
+# Cleanup
+cd $TEST_DIR_1
+terraform destroy -auto-approve
+cd $TEST_DIR_2
+terraform destroy -auto-approve
 
 info_print "Tests completed successfully!"
