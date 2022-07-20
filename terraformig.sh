@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ### SOURCE ###
 # https://github.com/TeraSky-OSS/TerraforMig
