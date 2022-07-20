@@ -31,7 +31,7 @@ Here's a simple script you can run to install and set up this tool.
 ```sh
 terraform_path="$(which terraform)"
 dest_path="$(readlink -f $terraform_path | sed -e 's#/terraform$##')"
-curl https://gitlab.com/skywiz-io/terraformig/-/raw/master/terraformig.sh --output $dest_path/terraformig
+curl https://raw.githubusercontent.com/TeraSky-OSS/TerraforMig/master/terraformig.sh --output $dest_path/terraformig
 chmod +x $dest_path/terraformig.sh
 cmd_path="$(echo $terraform_path | sed -e 's#/terraform$##')"
 ln -s $dest_path/terraformig.sh $cmd_path/terraformig

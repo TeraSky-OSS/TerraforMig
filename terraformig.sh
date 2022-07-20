@@ -1,7 +1,7 @@
 #!/bin/sh
 
 ### SOURCE ###
-# https://gitlab.com/skywiz-io/terraformig
+# https://github.com/TeraSky-OSS/TerraforMig
 
 ### LICENSE ###
 # MIT License
@@ -84,7 +84,7 @@ Global options (use these before the subcommand, if any):
   -help         An alias for the "help" subcommand.
   -version      An alias for the "version" subcommand.
 
-See here for more information: https://gitlab.com/skywiz-io/terraformig
+See here for more information: https://github.com/TeraSky-OSS/TerraforMig
 
 EOF
 }
