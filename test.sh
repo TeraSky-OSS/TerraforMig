@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ### CONFIGURATION ###
 set -e # Exit when any command fails
