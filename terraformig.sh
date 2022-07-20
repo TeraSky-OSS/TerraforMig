@@ -296,7 +296,7 @@ if [[ -f terraformig.tfstate.backup ]]; then
   backup_exists_error
 fi
 terraform refresh
-terraform state pull > terraform.tfstate
+echo "$(terraform state pull)" > terraform.tfstate
 cp terraform.tfstate terraformig.tfstate.backup
 
 cd $START_DIR
@@ -316,7 +316,7 @@ if [[ -f terraformig.tfstate.backup ]]; then
   backup_exists_error
 fi
 terraform refresh
-terraform state pull > terraform.tfstate
+echo "$(terraform state pull)" > terraform.tfstate
 cp terraform.tfstate terraformig.tfstate.backup
 
 cd $START_DIR
