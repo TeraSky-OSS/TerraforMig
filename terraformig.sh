@@ -96,21 +96,18 @@ format_input(){
 info_print(){
   tabulated_input="$(format_input "$*")"
   printf "\n%-*s %s\n" $OUTPUT_TYPE_WIDTH "[INFO]" "$tabulated_input"
-  sleep 2
 }
 
 debug_print(){
   if [[ $DEBUG -eq 1 ]]; then
     tabulated_input="$(format_input "$*")"
     printf "\n%-*s %s\n" $OUTPUT_TYPE_WIDTH "[DEBUG]" "$tabulated_input"
-    sleep 1
   fi
 }
 
 warn_print(){
   tabulated_input="$(format_input "$*")"
   printf "\n%-*s %s\n" $OUTPUT_TYPE_WIDTH "[WARN]" "$tabulated_input"
-  sleep 1
 }
 
 error_print(){
@@ -118,7 +115,6 @@ error_print(){
   printf "\n%-*s %s. \
   \n\tExiting...\n\n" \
   $OUTPUT_TYPE_WIDTH "[ERROR]" "$tabulated_input" >&2
-  sleep 1
   exit 1
 }
 
